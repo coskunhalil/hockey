@@ -51,35 +51,6 @@
             cursor: none;
         }
 
-        /* Uçan Emoji Tepkileri */
-        @keyframes floatReaction {
-            0% {
-                transform: translate(-50%, 0) scale(0.4) rotate(-12deg);
-                opacity: 0;
-            }
-            15% {
-                opacity: 1;
-                transform: translate(-50%, -22px) scale(1.25) rotate(8deg);
-            }
-            65% {
-                opacity: 1;
-                transform: translate(-50%, -140px) scale(1.05) rotate(-6deg);
-            }
-            100% {
-                opacity: 0;
-                transform: translate(-50%, -240px) scale(0.85) rotate(12deg);
-            }
-        }
-
-        .floating-emoji {
-            position: fixed;
-            font-size: 2.6rem;
-            z-index: 9999;
-            pointer-events: none;
-            animation: floatReaction 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
-        }
-
         /* Gol Kutlama Metni Animasyonu */
         @keyframes goalPop {
             0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
@@ -132,13 +103,6 @@
                 <p class="text-rose-200/70 text-xs sm:text-sm mt-1">Odanı kur, kodu sevgiline gönder ve masada kapışın!</p>
             </div>
 
-            <!-- İsimler ve Avatar Seçimi -->
-            <div class="space-y-3.5 mb-5">
-                <div class="grid grid-cols-2 gap-2.5">
-                    <div>
-                        <label class="block text-[11px] font-semibold text-rose-200/80 uppercase tracking-wider mb-1">Senin Adın</label>
-                        <input id="my-name-input" type="text" maxlength="14" placeholder="Örn: Aşkım"
-                            class="w-full px-3.5 py-2.5 rounded-2xl bg-black/45 border border-rose-400/30 text-white placeholder-rose-300/35 focus:outline-none focus:border-rose-400 transition text-sm font-medium">
             <!-- İsim ve Avatar Seçimi -->
             <div class="space-y-4 mb-5">
                 <div>
@@ -209,29 +173,28 @@
     </div>
 
     <!-- =========================================================
-         2. ÜST SKOR & DURUM ÇUBUĞU (SEVGİLİ / RAKİP TARAFI)
+         2. ÜST SKOR & RAKİP BİLGİ ÇUBUĞU
          ========================================================= -->
     <header class="w-full max-w-lg flex items-center justify-between px-2 py-1 z-20">
-        <!-- Bağlantı Durumu -->
-        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45 border border-white/10 text-[11px] font-medium">
-            <span id="net-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span id="net-label" class="text-rose-100/80">Bekleniyor</span>
+        <!-- Bağlantı Rozeti -->
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/45 border border-white/10 text-[11px] font-medium">
+            <span id="net-dot" class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+            <span id="net-label" class="text-rose-100/80">Bağlı Değil</span>
         </div>
 
-        <!-- Sevgili Bilgisi ve Skoru -->
-        <div class="flex items-center gap-2.5 px-3.5 py-1 rounded-2xl bg-purple-950/60 border border-purple-400/30 shadow-md">
-            <span id="opp-avatar-display" class="text-xl">🧸</span>
-            <div class="text-left leading-tight">
-                <div id="opp-name-display" class="text-xs font-bold text-purple-200">Sevgilim</div>
-                <div class="text-[10px] text-purple-300/70">7 Gol Kazanır</div>
+        <!-- Sevgili Profil ve Skoru -->
+        <div class="flex items-center gap-2.5 px-4 py-1.5 rounded-2xl bg-purple-950/65 border border-purple-400/35 shadow-md">
+            <div id="opp-score-display" class="font-game text-2xl font-bold text-purple-300 pr-2 border-r border-purple-400/25">0</div>
+            <div class="text-right leading-tight">
+                <div id="opp-name-display" class="text-xs font-bold text-purple-100">Sevgilim</div>
+                <div class="text-[10px] text-purple-300/70">Karşı Taraf</div>
             </div>
-            <div id="opp-score-display" class="font-game text-2xl font-bold text-purple-300 pl-2 border-l border-purple-400/25">0</div>
+            <span id="opp-avatar-display" class="text-xl">🧸</span>
         </div>
 
         <!-- Ses Aç / Kapa Butonu -->
-        <button id="btn-sound-toggle" type="button"
-            class="px-3 py-1.5 rounded-full bg-black/45 border border-white/10 text-sm hover:bg-white/10 transition active:scale-95"
-            title="Sesi Aç/Kapat">
+        <button id="btn-sound-toggle" type="button" title="Ses Efektleri"
+            class="px-3 py-1.5 rounded-full bg-black/45 border border-white/10 text-xs hover:bg-white/10 transition">
             🔊
         </button>
     </header>
@@ -239,43 +202,34 @@
     <!-- =========================================================
          3. ORTA HAVA HOKEYİ MASASI (CANVAS)
          ========================================================= -->
-    <main class="flex-1 w-full flex items-center justify-center relative my-1 overflow-hidden">
-        <div id="rink-container" class="rink-wrapper relative rounded-[28px] overflow-hidden flex items-center justify-center">
+    <main class="flex-1 w-full flex items-center justify-center overflow-hidden relative my-1">
+        <div id="rink-container" class="rink-wrapper rounded-[28px] relative overflow-hidden">
             <canvas id="hockey-canvas"></canvas>
 
             <!-- Gol Kutlama Katmanı -->
-            <div id="goal-overlay" class="hidden pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 text-center">
-                <div id="goal-overlay-text" class="font-game text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-300 via-amber-200 to-pink-300 drop-shadow-[0_4px_20px_rgba(244,63,94,0.9)]">
+            <div id="goal-overlay" class="hidden pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center z-30 w-full px-4">
+                <div id="goal-overlay-text" class="font-game text-4xl sm:text-5xl font-bold text-amber-300 drop-shadow-[0_4px_16px_rgba(244,63,94,0.85)]">
                     GOL! ❤️
                 </div>
-                <div id="goal-scorer-sub" class="text-xs sm:text-sm font-bold text-white/90 mt-1 px-3 py-0.5 rounded-full bg-black/50">
-                    Harika vuruş!
+                <div id="goal-scorer-sub" class="text-xs sm:text-sm font-bold text-white bg-black/60 inline-block px-3.5 py-1 rounded-full mt-1 border border-rose-400/40">
+                    Skor güncellendi!
                 </div>
             </div>
         </div>
     </main>
 
     <!-- =========================================================
-         4. ALT SKOR ÇUBUĞU & EMOJİ TEPKİ BUTONLARI
+         4. ALT SKOR ÇUBUĞU
          ========================================================= -->
-    <footer class="w-full max-w-lg flex items-center justify-between px-2 py-1 z-20 gap-2">
+    <footer class="w-full max-w-lg flex items-center justify-center px-2 py-1 z-20">
         <!-- Kendi Profilimiz ve Skorumuz -->
-        <div class="flex items-center gap-2.5 px-3.5 py-1 rounded-2xl bg-rose-950/65 border border-rose-400/35 shadow-md">
+        <div class="flex items-center gap-2.5 px-4 py-1.5 rounded-2xl bg-rose-950/65 border border-rose-400/35 shadow-md">
             <span id="my-avatar-display" class="text-xl">❤️</span>
             <div class="text-left leading-tight">
                 <div id="my-name-display" class="text-xs font-bold text-rose-100">Aşkım</div>
                 <div class="text-[10px] text-rose-300/70">Senin Tarafın</div>
             </div>
             <div id="my-score-display" class="font-game text-2xl font-bold text-rose-300 pl-2 border-l border-rose-400/25">0</div>
-        </div>
-
-        <!-- Anlık Emoji Tepki Butonları -->
-        <div class="flex items-center gap-1 sm:gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded-2xl border border-rose-400/25">
-            <button type="button" data-emoji="❤️" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">❤️</button>
-            <button type="button" data-emoji="😘" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">😘</button>
-            <button type="button" data-emoji="😂" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">😂</button>
-            <button type="button" data-emoji="🔥" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">🔥</button>
-            <button type="button" data-emoji="😱" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">😱</button>
         </div>
     </footer>
 
@@ -386,9 +340,6 @@
                     notes.forEach((n, i) => {
                         playTone(n, n * 1.02, 'triangle', 0.28, 0.16, i * 0.09);
                     });
-                },
-                reactionPop() {
-                    playTone(580, 920, 'sine', 0.14, 0.11);
                 }
             };
         })();
@@ -748,11 +699,6 @@
                     if (State.isHost) {
                         startNewMatchHost();
                     }
-                    break;
-
-                case 'EMOJI':
-                    SoundEngine.reactionPop();
-                    spawnFloatingEmoji(msg.emoji, true);
                     break;
             }
         }
@@ -1346,27 +1292,6 @@
             ctx.arc(x, y, MALLET_R * 0.45, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
-        }
-
-        // --- EMOJİ TEPKİLERİ ---
-        document.querySelectorAll('.reaction-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const emoji = btn.dataset.emoji;
-                SoundEngine.reactionPop();
-                spawnFloatingEmoji(emoji, false);
-                sendPeerData({ type: 'EMOJI', emoji });
-            });
-        });
-
-        function spawnFloatingEmoji(emoji, fromOpponent) {
-            const el = document.createElement('div');
-            el.className = 'floating-emoji';
-            el.textContent = emoji;
-            const randX = 28 + Math.random() * 44;
-            el.style.left = `${randX}%`;
-            el.style.top = fromOpponent ? '24%' : '74%';
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 2050);
         }
 
         // --- MAÇ SONU & KONFETİ ---
