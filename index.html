@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sevgilimle Hava Hokeyi ❤️</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- Google Fonts: Fredoka & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #241029 0%, #120716 70%, #09030c 100%);
+            color: #fff;
+            height: 100dvh;
+            width: 100vw;
+            touch-action: none;
+        }
+
+        .font-game {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Neon Masa Çerçevesi */
+        .rink-wrapper {
+            box-shadow:
+                0 0 40px rgba(244, 63, 94, 0.25),
+                0 0 80px rgba(168, 85, 247, 0.15),
+                inset 0 0 24px rgba(251, 113, 133, 0.2);
+            border: 3px solid rgba(251, 113, 133, 0.55);
+            background: #14091a;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            cursor: none;
+        }
+
+        /* Uçan Emoji Tepkileri */
+        @keyframes floatReaction {
+            0% {
+                transform: translate(-50%, 0) scale(0.4) rotate(-12deg);
+                opacity: 0;
+            }
+            15% {
+                opacity: 1;
+                transform: translate(-50%, -22px) scale(1.25) rotate(8deg);
+            }
+            65% {
+                opacity: 1;
+                transform: translate(-50%, -140px) scale(1.05) rotate(-6deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -240px) scale(0.85) rotate(12deg);
+            }
+        }
+
+        .floating-emoji {
+            position: fixed;
+            font-size: 2.6rem;
+            z-index: 9999;
+            pointer-events: none;
+            animation: floatReaction 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+        }
+
+        /* Gol Kutlama Metni Animasyonu */
+        @keyframes goalPop {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+            25% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+            75% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; }
+        }
+
+        .goal-banner-anim {
+            animation: goalPop 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* Konfeti Parçacıkları */
+        @keyframes confettiFall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0.75; }
+        }
+
+        .confetti-piece {
+            position: fixed;
+            top: -20px;
+            width: 10px;
+            height: 16px;
+            border-radius: 3px;
+            z-index: 10001;
+            pointer-events: none;
+            animation: confettiFall linear forwards;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between py-2 px-3">
+
+    <!-- Bildirim Toast Kutusu -->
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[11000] flex flex-col items-center gap-2 pointer-events-none w-[92%] max-w-sm"></div>
+
+    <!-- =========================================================
+         1. GİRİŞ & PEERJS LOBİ EKRANI (SADECE GERÇEK P2P, BOT YOK)
+         ========================================================= -->
+    <div id="lobby-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
+        <div class="w-full max-w-md bg-[#210f26]/95 border border-rose-500/35 rounded-3xl p-6 shadow-2xl shadow-rose-950/60 my-auto">
+            
+            <!-- Başlık -->
+            <div class="text-center mb-5">
+                <div class="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-rose-500/15 border border-rose-400/30 text-rose-300 text-xs font-semibold mb-2">
+                    <span>💖 Gerçek P2P Düello • Botsuz</span>
+                </div>
+                <h1 class="font-game text-3xl sm:text-4xl font-bold bg-gradient-to-r from-rose-300 via-pink-200 to-fuchsia-300 bg-clip-text text-transparent">
+                    Sevgilimle Hava Hokeyi
+                </h1>
+                <p class="text-rose-200/70 text-xs sm:text-sm mt-1">Odanı kur, kodu sevgiline gönder ve masada kapışın!</p>
+            </div>
+
+            <!-- İsimler ve Avatar Seçimi -->
+            <div class="space-y-3.5 mb-5">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-rose-200/80 uppercase tracking-wider mb-1">Senin Adın</label>
+                        <input id="my-name-input" type="text" maxlength="14" placeholder="Örn: Aşkım"
+                            class="w-full px-3.5 py-2.5 rounded-2xl bg-black/45 border border-rose-400/30 text-white placeholder-rose-300/35 focus:outline-none focus:border-rose-400 transition text-sm font-medium">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-rose-200/80 uppercase tracking-wider mb-1">Sevgilinin Adı</label>
+                        <input id="partner-name-input" type="text" maxlength="14" placeholder="Örn: Sevgilim"
+                            class="w-full px-3.5 py-2.5 rounded-2xl bg-black/45 border border-rose-400/30 text-white placeholder-rose-300/35 focus:outline-none focus:border-rose-400 transition text-sm font-medium">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-semibold text-rose-200/80 uppercase tracking-wider mb-1.5">Romantik Avatarını Seç</label>
+                    <div id="avatar-selector" class="grid grid-cols-6 gap-2">
+                        <button type="button" data-avatar="❤️" class="avatar-btn active-avatar text-2xl py-2.5 rounded-2xl bg-rose-500/30 border-2 border-rose-400 transition transform active:scale-95">❤️</button>
+                        <button type="button" data-avatar="🧸" class="avatar-btn text-2xl py-2.5 rounded-2xl bg-black/35 border border-white/10 hover:border-rose-400/50 transition transform active:scale-95">🧸</button>
+                        <button type="button" data-avatar="🐱" class="avatar-btn text-2xl py-2.5 rounded-2xl bg-black/35 border border-white/10 hover:border-rose-400/50 transition transform active:scale-95">🐱</button>
+                        <button type="button" data-avatar="👑" class="avatar-btn text-2xl py-2.5 rounded-2xl bg-black/35 border border-white/10 hover:border-rose-400/50 transition transform active:scale-95">👑</button>
+                        <button type="button" data-avatar="🦋" class="avatar-btn text-2xl py-2.5 rounded-2xl bg-black/35 border border-white/10 hover:border-rose-400/50 transition transform active:scale-95">🦋</button>
+                        <button type="button" data-avatar="🍓" class="avatar-btn text-2xl py-2.5 rounded-2xl bg-black/35 border border-white/10 hover:border-rose-400/50 transition transform active:scale-95">🍓</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Oda Kur / Katıl Aksiyonları -->
+            <div id="connection-actions" class="space-y-3">
+                <button id="btn-create-room" type="button"
+                    class="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 text-white font-bold text-base shadow-lg shadow-rose-600/30 transition transform active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>✨ Oda Kur (Host)</span>
+                </button>
+
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-rose-300/15"></div>
+                    <span class="flex-shrink mx-3 text-[11px] text-rose-300/55 font-semibold">VEYA ODAYA KATIL (GUEST)</span>
+                    <div class="flex-grow border-t border-rose-300/15"></div>
+                </div>
+
+                <div class="flex gap-2">
+                    <input id="join-code-input" type="text" maxlength="6" placeholder="ODA KODU"
+                        class="w-1/2 px-3 py-3 rounded-2xl bg-black/45 border border-rose-400/30 text-white text-center font-game tracking-widest uppercase placeholder-rose-300/35 focus:outline-none focus:border-rose-400 text-base">
+                    <button id="btn-join-room" type="button"
+                        class="w-1/2 py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-rose-300/30 text-rose-100 font-bold text-sm transition transform active:scale-[0.98]">
+                        Odaya Katıl 💌
+                    </button>
+                </div>
+            </div>
+
+            <!-- Oda Kuruldu / Bağlantı Bekleniyor Paneli -->
+            <div id="waiting-room-panel" class="hidden mt-4 p-4 rounded-2xl bg-black/45 border border-rose-400/35 text-center space-y-3">
+                <div class="flex items-center justify-center gap-2 text-amber-300 text-xs font-semibold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span id="connection-status-text">Sevgilinin bağlanması bekleniyor...</span>
+                </div>
+
+                <div>
+                    <p class="text-xs text-rose-200/70 mb-1.5">Oda Kodun (Sevgiline Gönder):</p>
+                    <div class="flex items-center justify-center gap-2">
+                        <span id="display-room-code" class="font-game text-3xl tracking-[0.2em] text-rose-300 bg-rose-950/70 px-4 py-1.5 rounded-xl border border-rose-400/35">-----</span>
+                        <button id="btn-copy-code" type="button" title="Kodu Kopyala"
+                            class="p-3 rounded-xl bg-rose-500/25 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 transition active:scale-95">
+                            📋
+                        </button>
+                    </div>
+                </div>
+
+                <button id="btn-cancel-wait" type="button" class="text-xs text-rose-300/65 hover:text-rose-200 underline pt-1">
+                    İptal Et / Geri Dön
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         2. ÜST SKOR & DURUM ÇUBUĞU (SEVGİLİ / RAKİP TARAFI)
+         ========================================================= -->
+    <header class="w-full max-w-lg flex items-center justify-between px-2 py-1 z-20">
+        <!-- Bağlantı Durumu -->
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/45 border border-white/10 text-[11px] font-medium">
+            <span id="net-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="net-label" class="text-rose-100/80">Bekleniyor</span>
+        </div>
+
+        <!-- Sevgili Bilgisi ve Skoru -->
+        <div class="flex items-center gap-2.5 px-3.5 py-1 rounded-2xl bg-purple-950/60 border border-purple-400/30 shadow-md">
+            <span id="opp-avatar-display" class="text-xl">🧸</span>
+            <div class="text-left leading-tight">
+                <div id="opp-name-display" class="text-xs font-bold text-purple-200">Sevgilim</div>
+                <div class="text-[10px] text-purple-300/70">7 Gol Kazanır</div>
+            </div>
+            <div id="opp-score-display" class="font-game text-2xl font-bold text-purple-300 pl-2 border-l border-purple-400/25">0</div>
+        </div>
+
+        <!-- Ses Aç / Kapa Butonu -->
+        <button id="btn-sound-toggle" type="button"
+            class="px-3 py-1.5 rounded-full bg-black/45 border border-white/10 text-sm hover:bg-white/10 transition active:scale-95"
+            title="Sesi Aç/Kapat">
+            🔊
+        </button>
+    </header>
+
+    <!-- =========================================================
+         3. ORTA HAVA HOKEYİ MASASI (CANVAS)
+         ========================================================= -->
+    <main class="flex-1 w-full flex items-center justify-center relative my-1 overflow-hidden">
+        <div id="rink-container" class="rink-wrapper relative rounded-[28px] overflow-hidden flex items-center justify-center">
+            <canvas id="hockey-canvas"></canvas>
+
+            <!-- Gol Kutlama Katmanı -->
+            <div id="goal-overlay" class="hidden pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 text-center">
+                <div id="goal-overlay-text" class="font-game text-5xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-300 via-amber-200 to-pink-300 drop-shadow-[0_4px_20px_rgba(244,63,94,0.9)]">
+                    GOL! ❤️
+                </div>
+                <div id="goal-scorer-sub" class="text-xs sm:text-sm font-bold text-white/90 mt-1 px-3 py-0.5 rounded-full bg-black/50">
+                    Harika vuruş!
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- =========================================================
+         4. ALT SKOR ÇUBUĞU & EMOJİ TEPKİ BUTONLARI
+         ========================================================= -->
+    <footer class="w-full max-w-lg flex items-center justify-between px-2 py-1 z-20 gap-2">
+        <!-- Kendi Profilimiz ve Skorumuz -->
+        <div class="flex items-center gap-2.5 px-3.5 py-1 rounded-2xl bg-rose-950/65 border border-rose-400/35 shadow-md">
+            <span id="my-avatar-display" class="text-xl">❤️</span>
+            <div class="text-left leading-tight">
+                <div id="my-name-display" class="text-xs font-bold text-rose-100">Aşkım</div>
+                <div class="text-[10px] text-rose-300/70">Senin Tarafın</div>
+            </div>
+            <div id="my-score-display" class="font-game text-2xl font-bold text-rose-300 pl-2 border-l border-rose-400/25">0</div>
+        </div>
+
+        <!-- Anlık Emoji Tepki Butonları -->
+        <div class="flex items-center gap-1 sm:gap-1.5 bg-black/50 backdrop-blur-md px-2 py-1 rounded-2xl border border-rose-400/25">
+            <button type="button" data-emoji="❤️" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">❤️</button>
+            <button type="button" data-emoji="😘" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">😘</button>
+            <button type="button" data-emoji="😂" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">😂</button>
+            <button type="button" data-emoji="🔥" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">🔥</button>
+            <button type="button" data-emoji="😱" class="reaction-btn text-lg sm:text-xl p-1.5 hover:scale-125 active:scale-90 transition">😱</button>
+        </div>
+    </footer>
+
+    <!-- =========================================================
+         5. MAÇ SONU / RÖVANŞ MODALI
+         ========================================================= -->
+    <div id="match-over-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-gradient-to-b from-[#2c1330] to-[#17091b] border border-rose-400/40 rounded-3xl p-7 max-w-sm w-full text-center shadow-2xl">
+            <div id="winner-emoji" class="text-6xl mb-3 animate-bounce">🏆</div>
+            <h2 id="winner-title" class="font-game text-2xl sm:text-3xl font-bold text-rose-200 mb-1.5">Kazandın!</h2>
+            <p id="winner-subtitle" class="text-sm text-rose-100/80 mb-5">7 gole ilk ulaşan taraf kazandı!</p>
+
+            <div class="bg-black/40 rounded-2xl p-3.5 mb-6 flex justify-around items-center border border-white/10">
+                <div>
+                    <div id="final-my-name" class="text-xs text-rose-300/80 font-semibold">Sen</div>
+                    <div id="final-my-score" class="font-game text-3xl text-rose-300 mt-0.5">7</div>
+                </div>
+                <div class="font-game text-xl text-white/40">VS</div>
+                <div>
+                    <div id="final-opp-name" class="text-xs text-purple-300/80 font-semibold">Sevgilin</div>
+                    <div id="final-opp-score" class="font-game text-3xl text-purple-300 mt-0.5">5</div>
+                </div>
+            </div>
+
+            <button id="btn-rematch" type="button"
+                class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500 text-white font-bold text-base shadow-lg shadow-rose-600/30 transition transform active:scale-95">
+                Rövanş Oyna 💕
+            </button>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         6. JAVASCRIPT: PEERJS + 60FPS FİZİK MOTORU + WEB AUDIO
+         ========================================================= -->
+    <script>
+        /**
+         * SEVGİLİMLE HAVA HOKEYİ - Gerçek P2P (PeerJS) 2 Kişilik Oyun Motoru
+         *
+         * Koordinat Sistemi (Normalize Edilmiş Dünya Uzayı):
+         * - Genişlik (W): 600 birim (-300 ile +300 arası veya 0..600) -> 0..600 kullanıyoruz.
+         * - Yükseklik (H): 1000 birim (0..1000 arası).
+         * - Host (Oda Kuran): Alt yarı sahada oynar (y: 500..1000).
+         * - Guest (Katılan): Üst yarı sahada oynar (y: 0..500), ancak Guest kendi ekranında
+         *   masayı 180 derece çevrilmiş (aynalı) görür; böylece her iki oyuncu da kendini
+         *   daima ALTTA, sevgilisini ise ÜSTTE görür!
+         */
+
+        const WORLD_W = 600;
+        const WORLD_H = 1000;
+        const PUCK_R = 22;
+        const MALLET_R = 36;
+        const GOAL_WIDTH = 210;
+        const WIN_SCORE = 7;
+        const MAX_PUCK_SPEED = 24;
+        const FRICTION = 0.993;
+
+        // --- WEB AUDIO API SENTEZLENMİŞ SES EFEKTLERİ ---
+        const SoundEngine = (() => {
+            let ctx = null;
+            let enabled = true;
+
+            function ensureCtx() {
+                if (!ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) ctx = new AudioCtx();
+                }
+                if (ctx && ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+            }
+
+            function playTone(freq, endFreq, type, duration, volume = 0.16, delay = 0) {
+                if (!enabled) return;
+                ensureCtx();
+                if (!ctx) return;
+                const now = ctx.currentTime + delay;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                if (endFreq && endFreq !== freq) {
+                    osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+                }
+                gain.gain.setValueAtTime(volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+
+            return {
+                toggle() {
+                    enabled = !enabled;
+                    return enabled;
+                },
+                hitMallet(intensity = 1) {
+                    const vol = Math.min(0.28, 0.08 + intensity * 0.14);
+                    playTone(260, 110, 'triangle', 0.11, vol);
+                    playTone(520, 240, 'sine', 0.07, vol * 0.6);
+                },
+                hitWall(intensity = 1) {
+                    const vol = Math.min(0.18, 0.05 + intensity * 0.09);
+                    playTone(180, 95, 'sine', 0.08, vol);
+                },
+                goalCelebration() {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((n, i) => {
+                        playTone(n, n * 1.02, 'triangle', 0.28, 0.16, i * 0.09);
+                    });
+                },
+                reactionPop() {
+                    playTone(580, 920, 'sine', 0.14, 0.11);
+                }
+            };
+        })();
+
+        // --- UYGULAMA VE OYUN DURUMU ---
+        const State = {
+            peer: null,
+            conn: null,
+            isHost: false,
+            connected: false,
+            roomCode: '',
+            myProfile: { name: 'Aşkım', avatar: '❤️' },
+            oppProfile: { name: 'Sevgilim', avatar: '🧸' },
+
+            // Dünya Koordinatlarında Fizik Durumu (Host otoritesi)
+            playing: false,
+            goalPause: false,
+            scores: { host: 0, guest: 0 },
+            puck: { x: WORLD_W / 2, y: WORLD_H / 2, vx: 0, vy: 0 },
+            mallets: {
+                host: { x: WORLD_W / 2, y: WORLD_H * 0.8, vx: 0, vy: 0, prevX: WORLD_W / 2, prevY: WORLD_H * 0.8 },
+                guest: { x: WORLD_W / 2, y: WORLD_H * 0.2, vx: 0, vy: 0, prevX: WORLD_W / 2, prevY: WORLD_H * 0.2 }
+            },
+            // Görsel Efektler (Yerel)
+            puckTrail: [],
+            particles: [],
+            ripples: [],
+            pointerActive: false
+        };
+
+        // --- DOM REFERANSLARI ---
+        const els = {
+            lobbyScreen: document.getElementById('lobby-screen'),
+            myNameInput: document.getElementById('my-name-input'),
+            partnerNameInput: document.getElementById('partner-name-input'),
+            avatarBtns: document.querySelectorAll('.avatar-btn'),
+            connectionActions: document.getElementById('connection-actions'),
+            waitingRoomPanel: document.getElementById('waiting-room-panel'),
+            connectionStatusText: document.getElementById('connection-status-text'),
+            displayRoomCode: document.getElementById('display-room-code'),
+            joinCodeInput: document.getElementById('join-code-input'),
+            btnCreateRoom: document.getElementById('btn-create-room'),
+            btnJoinRoom: document.getElementById('btn-join-room'),
+            btnCopyCode: document.getElementById('btn-copy-code'),
+            btnCancelWait: document.getElementById('btn-cancel-wait'),
+
+            netDot: document.getElementById('net-dot'),
+            netLabel: document.getElementById('net-label'),
+            btnSoundToggle: document.getElementById('btn-sound-toggle'),
+
+            oppAvatarDisplay: document.getElementById('opp-avatar-display'),
+            oppNameDisplay: document.getElementById('opp-name-display'),
+            oppScoreDisplay: document.getElementById('opp-score-display'),
+
+            myAvatarDisplay: document.getElementById('my-avatar-display'),
+            myNameDisplay: document.getElementById('my-name-display'),
+            myScoreDisplay: document.getElementById('my-score-display'),
+
+            rinkContainer: document.getElementById('rink-container'),
+            canvas: document.getElementById('hockey-canvas'),
+            goalOverlay: document.getElementById('goal-overlay'),
+            goalOverlayText: document.getElementById('goal-overlay-text'),
+            goalScorerSub: document.getElementById('goal-scorer-sub'),
+
+            matchOverModal: document.getElementById('match-over-modal'),
+            winnerEmoji: document.getElementById('winner-emoji'),
+            winnerTitle: document.getElementById('winner-title'),
+            winnerSubtitle: document.getElementById('winner-subtitle'),
+            finalMyName: document.getElementById('final-my-name'),
+            finalMyScore: document.getElementById('final-my-score'),
+            finalOppName: document.getElementById('final-opp-name'),
+            finalOppScore: document.getElementById('final-opp-score'),
+            btnRematch: document.getElementById('btn-rematch')
+        };
+
+        const ctx = els.canvas.getContext('2d');
+
+        // --- TOAST BİLDİRİM YARDIMCISI ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            const bg = type === 'error'
+                ? 'bg-red-600/95 border-red-300/40'
+                : 'bg-[#2a112e]/95 border-rose-400/40';
+            el.className = `${bg} border text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-2xl shadow-xl backdrop-blur-md transition-all duration-300 transform -translate-y-2 opacity-0 text-center`;
+            el.textContent = message;
+            container.appendChild(el);
+
+            requestAnimationFrame(() => el.classList.remove('-translate-y-2', 'opacity-0'));
+            setTimeout(() => {
+                el.classList.add('-translate-y-2', 'opacity-0');
+                setTimeout(() => el.remove(), 300);
+            }, 2600);
+        }
+
+        // --- AVATAR & İSİM SENKRONİZASYONU ---
+        els.avatarBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                els.avatarBtns.forEach(b => {
+                    b.classList.remove('active-avatar', 'bg-rose-500/30', 'border-2', 'border-rose-400');
+                    b.classList.add('bg-black/35', 'border', 'border-white/10');
+                });
+                btn.classList.add('active-avatar', 'bg-rose-500/30', 'border-2', 'border-rose-400');
+                btn.classList.remove('bg-black/35', 'border', 'border-white/10');
+                State.myProfile.avatar = btn.dataset.avatar;
+            });
+        });
+
+        function readLobbyProfiles() {
+            const myName = els.myNameInput.value.trim();
+            const partnerName = els.partnerNameInput.value.trim();
+            State.myProfile.name = myName || 'Aşkım';
+            State.oppProfile.name = partnerName || 'Sevgilim';
+
+            els.myNameDisplay.textContent = State.myProfile.name;
+            els.myAvatarDisplay.textContent = State.myProfile.avatar;
+            els.oppNameDisplay.textContent = State.oppProfile.name;
+            els.oppAvatarDisplay.textContent = State.oppProfile.avatar;
+        }
+
+        // --- PEERJS ODA KUR & KATIL (SADECE GERÇEK P2P) ---
+        const PEER_NS = 'love-airhockey-';
+
+        function makeRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let out = '';
+            for (let i = 0; i < 5; i++) {
+                out += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return out;
+        }
+
+        function destroyPeer() {
+            State.connected = false;
+            State.playing = false;
+            if (State.conn) {
+                try { State.conn.close(); } catch (e) {}
+                State.conn = null;
+            }
+            if (State.peer) {
+                try { State.peer.destroy(); } catch (e) {}
+                State.peer = null;
+            }
+        }
+
+        // Oda Kur (Host)
+        els.btnCreateRoom.addEventListener('click', () => {
+            if (typeof Peer === 'undefined') {
+                showToast('PeerJS yüklenemedi, lütfen internet bağlantını kontrol et.', 'error');
+                return;
+            }
+            readLobbyProfiles();
+            destroyPeer();
+
+            State.isHost = true;
+            State.roomCode = makeRoomCode();
+
+            els.connectionActions.classList.add('hidden');
+            els.waitingRoomPanel.classList.remove('hidden');
+            els.displayRoomCode.textContent = State.roomCode;
+            els.connectionStatusText.textContent = 'Oda oluşturuluyor...';
+
+            State.peer = new Peer(PEER_NS + State.roomCode);
+
+            State.peer.on('open', () => {
+                els.connectionStatusText.textContent = 'Sevgilinin bağlanması bekleniyor...';
+            });
+
+            State.peer.on('connection', (conn) => {
+                if (State.conn && State.conn.open) {
+                    conn.close();
+                    return;
+                }
+                State.conn = conn;
+                bindConnectionEvents();
+            });
+
+            State.peer.on('error', (err) => {
+                console.error(err);
+                showToast('Oda oluşturulurken hata oluştu, tekrar dene.', 'error');
+                resetLobby();
+            });
+        });
+
+        // Odaya Katıl (Guest)
+        els.btnJoinRoom.addEventListener('click', () => {
+            if (typeof Peer === 'undefined') {
+                showToast('PeerJS yüklenemedi, lütfen internet bağlantını kontrol et.', 'error');
+                return;
+            }
+            const code = els.joinCodeInput.value.trim().toUpperCase();
+            if (code.length < 4) {
+                showToast('Lütfen sevgilinin verdiği 5 haneli oda kodunu gir!', 'error');
+                return;
+            }
+
+            readLobbyProfiles();
+            destroyPeer();
+
+            State.isHost = false;
+            State.roomCode = code;
+
+            els.connectionActions.classList.add('hidden');
+            els.waitingRoomPanel.classList.remove('hidden');
+            els.displayRoomCode.textContent = code;
+            els.connectionStatusText.textContent = 'Sevgilinin odasına bağlanılıyor...';
+
+            State.peer = new Peer();
+
+            State.peer.on('open', () => {
+                State.conn = State.peer.connect(PEER_NS + code, { reliable: true });
+                bindConnectionEvents();
+            });
+
+            State.peer.on('error', (err) => {
+                console.error(err);
+                showToast('Oda bulunamadı! Kodu kontrol edip tekrar dene.', 'error');
+                resetLobby();
+            });
+        });
+
+        // Oda Kodunu Kopyala
+        els.btnCopyCode.addEventListener('click', () => {
+            const temp = document.createElement('input');
+            temp.value = State.roomCode;
+            document.body.appendChild(temp);
+            temp.select();
+            try {
+                document.execCommand('copy');
+                showToast(`Oda kodu kopyalandı: ${State.roomCode} 📋`);
+            } catch (e) {
+                showToast(`Oda Kodu: ${State.roomCode}`);
+            }
+            document.body.removeChild(temp);
+        });
+
+        els.btnCancelWait.addEventListener('click', () => {
+            destroyPeer();
+            resetLobby();
+        });
+
+        function resetLobby() {
+            els.waitingRoomPanel.classList.add('hidden');
+            els.connectionActions.classList.remove('hidden');
+            els.lobbyScreen.classList.remove('hidden');
+            updateConnectionBadge(false);
+        }
+
+        function updateConnectionBadge(isConnected) {
+            if (isConnected) {
+                els.netDot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                els.netLabel.textContent = 'Canlı Bağlı';
+            } else {
+                els.netDot.className = 'w-2 h-2 rounded-full bg-rose-500 animate-ping';
+                els.netLabel.textContent = 'Bağlı Değil';
+            }
+        }
+
+        function sendPeerData(data) {
+            if (State.conn && State.conn.open) {
+                State.conn.send(data);
+            }
+        }
+
+        function bindConnectionEvents() {
+            const conn = State.conn;
+
+            conn.on('open', () => {
+                State.connected = true;
+                updateConnectionBadge(true);
+                sendPeerData({
+                    type: 'HANDSHAKE',
+                    profile: State.myProfile
+                });
+            });
+
+            conn.on('data', (msg) => {
+                handlePeerMessage(msg);
+            });
+
+            conn.on('close', () => {
+                State.connected = false;
+                State.playing = false;
+                updateConnectionBadge(false);
+                showToast('Sevgilinle bağlantı koptu! 💔', 'error');
+                setTimeout(() => resetLobby(), 1600);
+            });
+
+            conn.on('error', () => {
+                showToast('Bağlantı hatası meydana geldi.', 'error');
+            });
+        }
+
+        function handlePeerMessage(msg) {
+            switch (msg.type) {
+                case 'HANDSHAKE':
+                    // Karşı tarafın profil bilgisi geldi
+                    if (msg.profile) {
+                        State.oppProfile.name = msg.profile.name || State.oppProfile.name;
+                        State.oppProfile.avatar = msg.profile.avatar || State.oppProfile.avatar;
+                    }
+                    els.oppNameDisplay.textContent = State.oppProfile.name;
+                    els.oppAvatarDisplay.textContent = State.oppProfile.avatar;
+                    els.lobbyScreen.classList.add('hidden');
+                    resizeCanvas();
+                    showToast(`${State.oppProfile.name} masaya geldi! Başarılar 💕`);
+
+                    if (State.isHost) {
+                        startNewMatchHost();
+                    }
+                    break;
+
+                case 'GUEST_INPUT':
+                    // Host, Guest'in tokmak hareketini alır
+                    if (State.isHost && State.playing) {
+                        const gm = State.mallets.guest;
+                        gm.vx = msg.x - gm.x;
+                        gm.vy = msg.y - gm.y;
+                        gm.x = msg.x;
+                        gm.y = msg.y;
+                    }
+                    break;
+
+                case 'WORLD_STATE':
+                    // Guest, Host'tan gelen anlık fizik durumunu uygular
+                    if (!State.isHost) {
+                        State.puck = msg.puck;
+                        State.mallets.host = msg.hostMallet;
+                        State.scores = msg.scores;
+                        State.playing = msg.playing;
+                        State.goalPause = msg.goalPause;
+                        updateScoreUI();
+                    }
+                    break;
+
+                case 'EVENT_FX':
+                    // Ses ve görsel efekt tetikleyicileri
+                    if (msg.fx === 'HIT_MALLET') {
+                        SoundEngine.hitMallet(msg.intensity || 1);
+                        spawnSparkles(msg.x, msg.y, '#fb7185', 10);
+                        spawnRipple(msg.x, msg.y, '#fda4af');
+                    } else if (msg.fx === 'HIT_WALL') {
+                        SoundEngine.hitWall(msg.intensity || 1);
+                        spawnSparkles(msg.x, msg.y, '#c084fc', 6);
+                    } else if (msg.fx === 'GOAL') {
+                        triggerGoalPresentation(msg.scorerRole, msg.scores);
+                    } else if (msg.fx === 'MATCH_OVER') {
+                        showMatchOverModal(msg.winnerRole, msg.scores);
+                    } else if (msg.fx === 'MATCH_START') {
+                        els.matchOverModal.classList.add('hidden');
+                        State.puckTrail = [];
+                        State.particles = [];
+                        State.ripples = [];
+                        State.scores = { host: 0, guest: 0 };
+                        updateScoreUI();
+                    }
+                    break;
+
+                case 'REQUEST_REMATCH':
+                    if (State.isHost) {
+                        startNewMatchHost();
+                    }
+                    break;
+
+                case 'EMOJI':
+                    SoundEngine.reactionPop();
+                    spawnFloatingEmoji(msg.emoji, true);
+                    break;
+            }
+        }
+
+        // --- MAÇ BAŞLATMA & FİZİK MOTORU (HOST OTORİTESİ) ---
+        function startNewMatchHost() {
+            State.scores = { host: 0, guest: 0 };
+            State.playing = true;
+            State.goalPause = false;
+            State.puckTrail = [];
+            State.particles = [];
+            State.ripples = [];
+
+            resetPositions('center');
+            els.matchOverModal.classList.add('hidden');
+            updateScoreUI();
+
+            sendPeerData({ type: 'EVENT_FX', fx: 'MATCH_START' });
+        }
+
+        function resetPositions(serveTo) {
+            State.mallets.host.x = WORLD_W / 2;
+            State.mallets.host.y = WORLD_H * 0.82;
+            State.mallets.host.vx = 0;
+            State.mallets.host.vy = 0;
+
+            State.mallets.guest.x = WORLD_W / 2;
+            State.mallets.guest.y = WORLD_H * 0.18;
+            State.mallets.guest.vx = 0;
+            State.mallets.guest.vy = 0;
+
+            State.puck.x = WORLD_W / 2;
+            if (serveTo === 'host') {
+                State.puck.y = WORLD_H * 0.62;
+            } else if (serveTo === 'guest') {
+                State.puck.y = WORLD_H * 0.38;
+            } else {
+                State.puck.y = WORLD_H / 2;
+            }
+            State.puck.vx = 0;
+            State.puck.vy = 0;
+            State.puckTrail = [];
+        }
+
+        function stepPhysicsHost() {
+            if (!State.isHost || !State.playing || State.goalPause) return;
+
+            const p = State.puck;
+
+            // Disk hareketi ve sürtünme
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vx *= FRICTION;
+            p.vy *= FRICTION;
+
+            if (Math.hypot(p.vx, p.vy) < 0.06) {
+                p.vx = 0;
+                p.vy = 0;
+            }
+
+            // Yan duvarlardan sekme (Sol & Sağ)
+            if (p.x - PUCK_R < 0) {
+                p.x = PUCK_R;
+                p.vx = Math.abs(p.vx) * 0.94;
+                const intensity = Math.min(1, Math.hypot(p.vx, p.vy) / 16);
+                SoundEngine.hitWall(intensity);
+                spawnSparkles(p.x, p.y, '#c084fc', 6);
+                sendPeerData({ type: 'EVENT_FX', fx: 'HIT_WALL', x: p.x, y: p.y, intensity });
+            } else if (p.x + PUCK_R > WORLD_W) {
+                p.x = WORLD_W - PUCK_R;
+                p.vx = -Math.abs(p.vx) * 0.94;
+                const intensity = Math.min(1, Math.hypot(p.vx, p.vy) / 16);
+                SoundEngine.hitWall(intensity);
+                spawnSparkles(p.x, p.y, '#c084fc', 6);
+                sendPeerData({ type: 'EVENT_FX', fx: 'HIT_WALL', x: p.x, y: p.y, intensity });
+            }
+
+            // Kale sınırları
+            const goalLeft = (WORLD_W - GOAL_WIDTH) / 2;
+            const goalRight = (WORLD_W + GOAL_WIDTH) / 2;
+            const inGoalX = p.x > goalLeft + PUCK_R * 0.35 && p.x < goalRight - PUCK_R * 0.35;
+
+            // Üst Duvar / Guest Kalesi (y = 0)
+            if (p.y - PUCK_R < 0) {
+                if (inGoalX) {
+                    // Host gol attı!
+                    handleGoalScored('host');
+                    return;
+                } else {
+                    p.y = PUCK_R;
+                    p.vy = Math.abs(p.vy) * 0.94;
+                    const intensity = Math.min(1, Math.hypot(p.vx, p.vy) / 16);
+                    SoundEngine.hitWall(intensity);
+                    spawnSparkles(p.x, p.y, '#c084fc', 6);
+                    sendPeerData({ type: 'EVENT_FX', fx: 'HIT_WALL', x: p.x, y: p.y, intensity });
+                }
+            }
+
+            // Alt Duvar / Host Kalesi (y = WORLD_H)
+            if (p.y + PUCK_R > WORLD_H) {
+                if (inGoalX) {
+                    // Guest gol attı!
+                    handleGoalScored('guest');
+                    return;
+                } else {
+                    p.y = WORLD_H - PUCK_R;
+                    p.vy = -Math.abs(p.vy) * 0.94;
+                    const intensity = Math.min(1, Math.hypot(p.vx, p.vy) / 16);
+                    SoundEngine.hitWall(intensity);
+                    spawnSparkles(p.x, p.y, '#c084fc', 6);
+                    sendPeerData({ type: 'EVENT_FX', fx: 'HIT_WALL', x: p.x, y: p.y, intensity });
+                }
+            }
+
+            // Tokmak Çarpışmaları (Host ve Guest)
+            resolveMalletCollision(State.mallets.host);
+            resolveMalletCollision(State.mallets.guest);
+
+            // Tokmak hızlarını sönümle (hareketsiz durduğunda hız sıfırlansın)
+            State.mallets.host.vx *= 0.65;
+            State.mallets.host.vy *= 0.65;
+            State.mallets.guest.vx *= 0.65;
+            State.mallets.guest.vy *= 0.65;
+
+            // Hız sınırı kontrolü
+            const speed = Math.hypot(p.vx, p.vy);
+            if (speed > MAX_PUCK_SPEED) {
+                const ratio = MAX_PUCK_SPEED / speed;
+                p.vx *= ratio;
+                p.vy *= ratio;
+            }
+
+            // Durumu Guest'e yayınla
+            sendPeerData({
+                type: 'WORLD_STATE',
+                puck: { x: p.x, y: p.y, vx: p.vx, vy: p.vy },
+                hostMallet: { x: State.mallets.host.x, y: State.mallets.host.y },
+                scores: State.scores,
+                playing: State.playing,
+                goalPause: State.goalPause
+            });
+        }
+
+        function resolveMalletCollision(mallet) {
+            const p = State.puck;
+            const dx = p.x - mallet.x;
+            const dy = p.y - mallet.y;
+            const dist = Math.hypot(dx, dy);
+            const minDist = PUCK_R + MALLET_R;
+
+            if (dist < minDist) {
+                const nx = dist === 0 ? 0 : dx / dist;
+                const ny = dist === 0 ? 1 : dy / dist;
+
+                // İç içe geçmeyi ayır
+                const overlap = minDist - dist;
+                p.x += nx * (overlap + 1);
+                p.y += ny * (overlap + 1);
+
+                // Göreceli hız & momentum aktarımı
+                const relVx = p.vx - mallet.vx;
+                const relVy = p.vy - mallet.vy;
+                const sepVel = relVx * nx + relVy * ny;
+
+                if (sepVel < 0) {
+                    const restitution = 1.05;
+                    const impulse = -(1 + restitution) * sepVel;
+                    p.vx += impulse * nx + mallet.vx * 0.45;
+                    p.vy += impulse * ny + mallet.vy * 0.45;
+                } else {
+                    // Tokmak diske doğru itiliyorsa ekstra vuruş gücü ver
+                    p.vx += nx * 6 + mallet.vx * 0.6;
+                    p.vy += ny * 6 + mallet.vy * 0.6;
+                }
+
+                // Minimum sekme hızı garanti et
+                const postSpeed = Math.hypot(p.vx, p.vy);
+                if (postSpeed < 7) {
+                    p.vx = nx * 8;
+                    p.vy = ny * 8;
+                }
+
+                const intensity = Math.min(1, postSpeed / 20);
+                SoundEngine.hitMallet(intensity);
+                const hitX = mallet.x + nx * MALLET_R;
+                const hitY = mallet.y + ny * MALLET_R;
+                spawnSparkles(hitX, hitY, '#fb7185', 11);
+                spawnRipple(hitX, hitY, '#fda4af');
+                sendPeerData({ type: 'EVENT_FX', fx: 'HIT_MALLET', x: hitX, y: hitY, intensity });
+            }
+        }
+
+        function handleGoalScored(scorerRole) {
+            State.goalPause = true;
+            State.scores[scorerRole] += 1;
+
+            triggerGoalPresentation(scorerRole, State.scores);
+            sendPeerData({
+                type: 'EVENT_FX',
+                fx: 'GOAL',
+                scorerRole,
+                scores: State.scores
+            });
+
+            // 7 gole ulaşan kazandı mı?
+            if (State.scores[scorerRole] >= WIN_SCORE) {
+                State.playing = false;
+                setTimeout(() => {
+                    showMatchOverModal(scorerRole, State.scores);
+                    sendPeerData({
+                        type: 'EVENT_FX',
+                        fx: 'MATCH_OVER',
+                        winnerRole: scorerRole,
+                        scores: State.scores
+                    });
+                }, 1300);
+                return;
+            }
+
+            // Gol yiyen tarafa servis atışı ile devam et
+            const concededRole = scorerRole === 'host' ? 'guest' : 'host';
+            setTimeout(() => {
+                if (!State.playing) return;
+                resetPositions(concededRole);
+                State.goalPause = false;
+                sendPeerData({
+                    type: 'WORLD_STATE',
+                    puck: State.puck,
+                    hostMallet: State.mallets.host,
+                    scores: State.scores,
+                    playing: State.playing,
+                    goalPause: false
+                });
+            }, 1350);
+        }
+
+        function triggerGoalPresentation(scorerRole, scores) {
+            State.scores = scores;
+            updateScoreUI();
+            SoundEngine.goalCelebration();
+
+            const myRole = State.isHost ? 'host' : 'guest';
+            const isMyGoal = scorerRole === myRole;
+            const scorerName = isMyGoal ? State.myProfile.name : State.oppProfile.name;
+
+            els.goalOverlayText.textContent = isMyGoal ? 'GOL ATTIN! ❤️' : 'GOL OLDU! 😱';
+            els.goalScorerSub.textContent = `${scorerName} skoru aldı! (${scores[myRole]} - ${scores[myRole === 'host' ? 'guest' : 'host']})`;
+
+            els.goalOverlay.classList.remove('hidden');
+            els.goalOverlay.classList.remove('goal-banner-anim');
+            void els.goalOverlay.offsetWidth; // Reflow
+            els.goalOverlay.classList.add('goal-banner-anim');
+
+            // Kale bölgesinde ışık patlaması parçacıkları
+            const burstY = isMyGoal ? 40 : WORLD_H - 40;
+            spawnSparkles(WORLD_W / 2, burstY, '#fbbf24', 34);
+            spawnSparkles(WORLD_W / 2, burstY, '#f43f5e', 28);
+
+            setTimeout(() => {
+                els.goalOverlay.classList.add('hidden');
+            }, 1350);
+        }
+
+        function updateScoreUI() {
+            const myRole = State.isHost ? 'host' : 'guest';
+            const oppRole = State.isHost ? 'guest' : 'host';
+            els.myScoreDisplay.textContent = State.scores[myRole];
+            els.oppScoreDisplay.textContent = State.scores[oppRole];
+        }
+
+        // --- PARÇACIK & DALGA EFEKTLERİ ---
+        function spawnSparkles(wx, wy, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1.5 + Math.random() * 5.5;
+                State.particles.push({
+                    x: wx,
+                    y: wy,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    decay: 0.03 + Math.random() * 0.03,
+                    size: 2.5 + Math.random() * 3.5,
+                    color
+                });
+            }
+        }
+
+        function spawnRipple(wx, wy, color) {
+            State.ripples.push({
+                x: wx,
+                y: wy,
+                radius: 10,
+                alpha: 0.85,
+                color
+            });
+        }
+
+        // --- KULLANICI GİRİŞİ (FARE VE DOKUNMATİK KONTROL) ---
+        function screenToWorld(clientX, clientY) {
+            const rect = els.canvas.getBoundingClientRect();
+            const normX = (clientX - rect.left) / rect.width;
+            const normY = (clientY - rect.top) / rect.height;
+
+            let wx = normX * WORLD_W;
+            let wy = normY * WORLD_H;
+
+            // Guest kendi ekranında masayı ters (180° döndürülmüş) gördüğü için koordinatları çevir
+            if (!State.isHost) {
+                wx = WORLD_W - wx;
+                wy = WORLD_H - wy;
+            }
+            return { x: wx, y: wy };
+        }
+
+        function updateMyMalletFromPointer(clientX, clientY) {
+            if (!State.connected) return;
+            const pos = screenToWorld(clientX, clientY);
+
+            // Sınırlandırma: Her oyuncu sadece kendi yarı sahasında ve kenarlar içinde kalabilir
+            const clampedX = Math.max(MALLET_R + 4, Math.min(WORLD_W - MALLET_R - 4, pos.x));
+            let clampedY;
+
+            if (State.isHost) {
+                // Host alt yarıda: y ∈ [WORLD_H/2 + MALLET_R, WORLD_H - MALLET_R - 4]
+                clampedY = Math.max(WORLD_H / 2 + MALLET_R, Math.min(WORLD_H - MALLET_R - 4, pos.y));
+                const hm = State.mallets.host;
+                hm.vx = clampedX - hm.x;
+                hm.vy = clampedY - hm.y;
+                hm.x = clampedX;
+                hm.y = clampedY;
+            } else {
+                // Guest üst yarıda: y ∈ [MALLET_R + 4, WORLD_H/2 - MALLET_R]
+                clampedY = Math.max(MALLET_R + 4, Math.min(WORLD_H / 2 - MALLET_R, pos.y));
+                const gm = State.mallets.guest;
+                gm.vx = clampedX - gm.x;
+                gm.vy = clampedY - gm.y;
+                gm.x = clampedX;
+                gm.y = clampedY;
+
+                // Guest pozisyonunu Host'a gönder
+                sendPeerData({
+                    type: 'GUEST_INPUT',
+                    x: clampedX,
+                    y: clampedY
+                });
+            }
+        }
+
+        // Pointer / Mouse / Touch Eventleri
+        els.canvas.addEventListener('pointerdown', (e) => {
+            State.pointerActive = true;
+            els.canvas.setPointerCapture(e.pointerId);
+            updateMyMalletFromPointer(e.clientX, e.clientY);
+        });
+
+        els.canvas.addEventListener('pointermove', (e) => {
+            if (!State.pointerActive && e.pointerType === 'touch') return;
+            updateMyMalletFromPointer(e.clientX, e.clientY);
+        });
+
+        els.canvas.addEventListener('pointerup', (e) => {
+            State.pointerActive = false;
+            try { els.canvas.releasePointerCapture(e.pointerId); } catch (err) {}
+        });
+
+        // --- RESPONSIVE CANVAS BOYUTLANDIRMA ---
+        function resizeCanvas() {
+            const mainEl = els.rinkContainer.parentElement;
+            const availW = mainEl.clientWidth - 12;
+            const availH = mainEl.clientHeight - 8;
+
+            const aspect = WORLD_W / WORLD_H; // 0.6
+            let targetW = availW;
+            let targetH = targetW / aspect;
+
+            if (targetH > availH) {
+                targetH = availH;
+                targetW = targetH * aspect;
+            }
+
+            els.rinkContainer.style.width = `${Math.floor(targetW)}px`;
+            els.rinkContainer.style.height = `${Math.floor(targetH)}px`;
+
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            els.canvas.width = Math.floor(targetW * dpr);
+            els.canvas.height = Math.floor(targetH * dpr);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // --- ÇİZİM (RENDER) MOTORU ---
+        function drawTable() {
+            const cw = els.canvas.width;
+            const ch = els.canvas.height;
+            const scaleX = cw / WORLD_W;
+            const scaleY = ch / WORLD_H;
+
+            ctx.save();
+            ctx.scale(scaleX, scaleY);
+
+            // Guest için kamerayı 180 derece döndür (Kendi tarafını altta görsün)
+            if (!State.isHost) {
+                ctx.translate(WORLD_W / 2, WORLD_H / 2);
+                ctx.rotate(Math.PI);
+                ctx.translate(-WORLD_W / 2, -WORLD_H / 2);
+            }
+
+            // 1. Zemin Gradyanı
+            const bgGrad = ctx.createRadialGradient(WORLD_W / 2, WORLD_H / 2, 40, WORLD_W / 2, WORLD_H / 2, WORLD_H * 0.65);
+            bgGrad.addColorStop(0, '#27112e');
+            bgGrad.addColorStop(0.6, '#18091e');
+            bgGrad.addColorStop(1, '#0e0412');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+
+            // 2. Orta Saha Çizgisi ve Orta Daire (Neon Pembe/Mor)
+            ctx.strokeStyle = 'rgba(251, 113, 133, 0.28)';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, WORLD_H / 2);
+            ctx.lineTo(WORLD_W, WORLD_H / 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(WORLD_W / 2, WORLD_H / 2, 95, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Ortada Zarif Kalp Silüeti
+            drawCenterHeart(WORLD_W / 2, WORLD_H / 2, 26, 'rgba(244, 63, 94, 0.16)');
+
+            // 3. Kale Bölgeleri (Üst = Guest Kalesi, Alt = Host Kalesi)
+            const goalLeft = (WORLD_W - GOAL_WIDTH) / 2;
+
+            // Üst Kale (Mor Neon)
+            ctx.save();
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = '#c084fc';
+            ctx.strokeStyle = '#d8b4fe';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(goalLeft, 2);
+            ctx.lineTo(goalLeft + GOAL_WIDTH, 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(192, 132, 252, 0.25)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(WORLD_W / 2, 0, GOAL_WIDTH / 2, 0, Math.PI);
+            ctx.stroke();
+            ctx.restore();
+
+            // Alt Kale (Gül/Pembe Neon)
+            ctx.save();
+            ctx.shadowBlur = 22;
+            ctx.shadowColor = '#fb7185';
+            ctx.strokeStyle = '#fda4af';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(goalLeft, WORLD_H - 2);
+            ctx.lineTo(goalLeft + GOAL_WIDTH, WORLD_H - 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(251, 113, 133, 0.25)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(WORLD_W / 2, WORLD_H, GOAL_WIDTH / 2, Math.PI, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+
+            // 4. Dalga Efektleri (Ripples)
+            for (let i = State.ripples.length - 1; i >= 0; i--) {
+                const r = State.ripples[i];
+                r.radius += 2.6;
+                r.alpha -= 0.035;
+                if (r.alpha <= 0) {
+                    State.ripples.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.strokeStyle = r.color;
+                ctx.globalAlpha = r.alpha;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 5. Disk (Puck) Hareket İzi
+            if (State.playing && !State.goalPause) {
+                State.puckTrail.push({ x: State.puck.x, y: State.puck.y });
+                if (State.puckTrail.length > 12) State.puckTrail.shift();
+            }
+            State.puckTrail.forEach((pt, idx) => {
+                const ratio = (idx + 1) / State.puckTrail.length;
+                ctx.save();
+                ctx.fillStyle = `rgba(253, 224, 71, ${ratio * 0.22})`;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, PUCK_R * (0.45 + ratio * 0.45), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // 6. Disk (Puck) Çizimi
+            drawPuck(State.puck.x, State.puck.y);
+
+            // 7. Tokmaklar (Mallets)
+            drawMallet(State.mallets.host.x, State.mallets.host.y, '#f43f5e', '#fecdd3');
+            drawMallet(State.mallets.guest.x, State.mallets.guest.y, '#a855f7', '#e9d5ff');
+
+            // 8. Kıvılcım Parçacıkları
+            for (let i = State.particles.length - 1; i >= 0; i--) {
+                const pt = State.particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.life -= pt.decay;
+                if (pt.life <= 0) {
+                    State.particles.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = pt.life;
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        function drawCenterHeart(cx, cy, size, fill) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            if (!State.isHost) ctx.rotate(Math.PI); // Guest için kalp düz görünsün
+            ctx.fillStyle = fill;
+            ctx.beginPath();
+            ctx.moveTo(0, size * 0.35);
+            ctx.bezierCurveTo(-size, -size * 0.4, -size * 0.5, -size * 1.1, 0, -size * 0.45);
+            ctx.bezierCurveTo(size * 0.5, -size * 1.1, size, -size * 0.4, 0, size * 0.35);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPuck(x, y) {
+            ctx.save();
+            ctx.shadowBlur = 18;
+            ctx.shadowColor = '#facc15';
+
+            const grad = ctx.createRadialGradient(x - 6, y - 6, 3, x, y, PUCK_R);
+            grad.addColorStop(0, '#fef08a');
+            grad.addColorStop(0.55, '#f59e0b');
+            grad.addColorStop(1, '#b45309');
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, PUCK_R, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#fffbeb';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(x, y, PUCK_R * 0.68, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawMallet(x, y, mainColor, rimColor) {
+            ctx.save();
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = mainColor;
+
+            // Dış gövde
+            ctx.fillStyle = mainColor;
+            ctx.beginPath();
+            ctx.arc(x, y, MALLET_R, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Parlak dış halka
+            ctx.strokeStyle = rimColor;
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.arc(x, y, MALLET_R - 2, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Orta tutamaç topuzu
+            ctx.fillStyle = 'rgba(255,255,255,0.28)';
+            ctx.beginPath();
+            ctx.arc(x, y, MALLET_R * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // --- EMOJİ TEPKİLERİ ---
+        document.querySelectorAll('.reaction-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const emoji = btn.dataset.emoji;
+                SoundEngine.reactionPop();
+                spawnFloatingEmoji(emoji, false);
+                sendPeerData({ type: 'EMOJI', emoji });
+            });
+        });
+
+        function spawnFloatingEmoji(emoji, fromOpponent) {
+            const el = document.createElement('div');
+            el.className = 'floating-emoji';
+            el.textContent = emoji;
+            const randX = 28 + Math.random() * 44;
+            el.style.left = `${randX}%`;
+            el.style.top = fromOpponent ? '24%' : '74%';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2050);
+        }
+
+        // --- MAÇ SONU & KONFETİ ---
+        function showMatchOverModal(winnerRole, scores) {
+            const myRole = State.isHost ? 'host' : 'guest';
+            const oppRole = State.isHost ? 'guest' : 'host';
+            const iWon = winnerRole === myRole;
+
+            els.finalMyName.textContent = State.myProfile.name;
+            els.finalMyScore.textContent = scores[myRole];
+            els.finalOppName.textContent = State.oppProfile.name;
+            els.finalOppScore.textContent = scores[oppRole];
+
+            if (iWon) {
+                els.winnerEmoji.textContent = '👑';
+                els.winnerTitle.textContent = `Tebrikler ${State.myProfile.name}!`;
+                els.winnerSubtitle.textContent = `${State.oppProfile.name} karşısında harika bir galibiyet aldın! 💕`;
+                launchConfetti();
+            } else {
+                els.winnerEmoji.textContent = State.oppProfile.avatar;
+                els.winnerTitle.textContent = `${State.oppProfile.name} Kazandı!`;
+                els.winnerSubtitle.textContent = 'Çok çekişmeli bir maçtı! Hadi hemen rövanş atalım ❤️';
+            }
+
+            els.matchOverModal.classList.remove('hidden');
+        }
+
+        function launchConfetti() {
+            const colors = ['#f43f5e', '#fbbf24', '#c084fc', '#34d399', '#f472b6', '#ffffff'];
+            for (let i = 0; i < 50; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = `${Math.random() * 100}vw`;
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDuration = `${2.2 + Math.random() * 2}s`;
+                piece.style.animationDelay = `${Math.random() * 0.4}s`;
+                document.body.appendChild(piece);
+                setTimeout(() => piece.remove(), 4500);
+            }
+        }
+
+        els.btnRematch.addEventListener('click', () => {
+            els.matchOverModal.classList.add('hidden');
+            if (State.isHost) {
+                startNewMatchHost();
+            } else {
+                sendPeerData({ type: 'REQUEST_REMATCH' });
+                showToast('Rövanş başlatılıyor... 💕');
+            }
+        });
+
+        // Ses Aç / Kapa Butonu
+        els.btnSoundToggle.addEventListener('click', () => {
+            const active = SoundEngine.toggle();
+            els.btnSoundToggle.textContent = active ? '🔊' : '🔇';
+            showToast(active ? 'Ses efektleri açık 🔊' : 'Ses efektleri kapalı 🔇');
+        });
+
+        // --- 60FPS ANA OYUN DÖNGÜSÜ ---
+        function gameLoop() {
+            stepPhysicsHost();
+            drawTable();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            resizeCanvas();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
